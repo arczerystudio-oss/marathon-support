@@ -4,39 +4,20 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-# =========================
-# ENV VARS (настраиваешь вне кода)
-# =========================
+
 TOKEN = os.getenv("DISCORD_TOKEN")
-
-# Несколько ролей модерации через запятую: "123,456,789"
 MOD_ROLE_IDS = [int(x) for x in os.getenv("MOD_ROLE_IDS", "").split(",") if x.strip().isdigit()]
-
-# Категория, где создаются тикеты (ID). Можно оставить пустым/0 — тогда без категории.
 TICKET_CATEGORY_ID = int(os.getenv("TICKET_CATEGORY_ID", "0"))
-
-# Канал для логов (ID). Обязательно для логирования.
 TICKET_LOG_CHANNEL_ID = int(os.getenv("TICKET_LOG_CHANNEL_ID", "0"))
-
-# Картинка в панели (опционально, должна быть http/https)
 TICKET_BANNER_URL = os.getenv("TICKET_BANNER_URL", "").strip()
-
-# Префикс имени тикет-канала
 TICKET_PREFIX = "ticket"
 
-# =========================
-# BOT SETUP
-# =========================
 intents = discord.Intents.default()
 intents.guilds = True
-intents.members = True  # для ролей
+intents.members = True  
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
-# =========================
-# HELPERS
-# =========================
 def safe_name(name: str) -> str:
     name = name.lower()
     name = re.sub(r"[^a-z0-9_-]+", "-", name)
@@ -53,7 +34,7 @@ def is_mod(member: discord.Member) -> bool:
 def get_opener_id_from_topic(channel: discord.TextChannel) -> int | None:
     if not channel.topic:
         return None
-    # topic = "ticket_opener:<id>"
+ 
     prefix = "ticket_opener:"
     t = channel.topic.strip()
     if t.startswith(prefix):
@@ -92,10 +73,6 @@ async def log_ticket(
     embed.set_footer(text="SYS // MARATHON СНГ — LOG")
     await log_ch.send(embed=embed)
 
-
-# =========================
-# VIEWS
-# =========================
 class TicketControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -113,9 +90,8 @@ class TicketControlView(discord.ui.View):
         opener_id = get_opener_id_from_topic(ch)
         opener_member = interaction.guild.get_member(opener_id) if opener_id else None
 
-        # Закрывать может автор тикета или любая мод-роль
         if opener_id is None:
-            # если topic по какой-то причине отсутствует — закрывать только модам
+       
             if not is_mod(interaction.user):
                 await interaction.response.send_message("Нет прав закрыть этот тикет.", ephemeral=True)
                 return
@@ -126,7 +102,7 @@ class TicketControlView(discord.ui.View):
 
         await interaction.response.send_message("SYS // TICKET CLOSING", ephemeral=True)
 
-        # Лог закрытия
+   
         await log_ticket(
             interaction.guild,
             action="CLOSED",
@@ -135,7 +111,6 @@ class TicketControlView(discord.ui.View):
             channel=ch,
         )
 
-        # Сообщение в тикете + удаление
         try:
             await ch.send("SYS // TICKET CLOSED")
         except Exception:
@@ -160,18 +135,18 @@ class TicketOpenView(discord.ui.View):
         if guild is None or not isinstance(interaction.user, discord.Member):
             return
 
-        # Проверка: есть ли уже тикет у пользователя
+   
         for ch in guild.text_channels:
             if ch.topic and ch.topic.strip() == f"ticket_opener:{interaction.user.id}":
                 await interaction.response.send_message(f"У тебя уже есть тикет: {ch.mention}", ephemeral=True)
                 return
 
-        # Категория
+     
         category = guild.get_channel(TICKET_CATEGORY_ID) if TICKET_CATEGORY_ID else None
         if category is not None and not isinstance(category, discord.CategoryChannel):
             category = None
 
-        # Overwrites: закрыто для everyone, доступ автору + всем мод-ролям + боту
+       
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(view_channel=False),
             interaction.user: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
@@ -209,7 +184,7 @@ class TicketOpenView(discord.ui.View):
         )
         await ticket_channel.send("SYS // MOD PANEL", view=TicketControlView())
 
-        # Лог создания
+    
         await log_ticket(
             guild,
             action="CREATED",
@@ -219,14 +194,11 @@ class TicketOpenView(discord.ui.View):
         )
 
 
-# =========================
-# READY
-# =========================
 @bot.event
 async def on_ready():
     print(f"READY: {bot.user}", flush=True)
 
-    # persistent views
+
     bot.add_view(TicketOpenView())
     bot.add_view(TicketControlView())
 
@@ -235,10 +207,6 @@ async def on_ready():
     except Exception as e:
         print(f"Sync error: {e}", flush=True)
 
-
-# =========================
-# SLASH COMMAND: send panel
-# =========================
 @bot.tree.command(name="ticket_panel", description="Отправить SYSTEM NOTICE панель тикетов в этот канал")
 @app_commands.checks.has_permissions(manage_guild=True)
 async def ticket_panel(interaction: discord.Interaction):
@@ -275,9 +243,6 @@ async def ticket_panel_error(interaction: discord.Interaction, error):
         pass
 
 
-# =========================
-# START
-# =========================
 if not TOKEN:
     raise RuntimeError("DISCORD_TOKEN не задан")
 
