@@ -1,0 +1,19 @@
+# fly.toml app configuration file generated for marathon-support on 2026-01-22T22:27:59+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'marathon-support'
+primary_region = 'fra'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[processes]
+  app = 'python bot.py'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
